@@ -412,7 +412,7 @@ scikit-learn versions).
 ```text
 CodeAlpha_CreditScoringModel/
 ├── data/
-│   └── README.md               How to download cs-training.csv
+│   └── cs-training.csv
 ├── notebooks/
 │   └── credit_scoring.ipynb    Full analysis, run top to bottom
 ├── LICENSE
