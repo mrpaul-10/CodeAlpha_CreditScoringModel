@@ -156,8 +156,6 @@ Replacing the values with 0 straight away would have labelled these people as "n
 away a strong risk signal, so the `late_code_flag` column is created first. The exact meaning of
 96 and 98 is not documented; the evidence shows they are not real counts.
 
-<p align="center"><img src="images/default_rate_by_late_code_flag.png" width="380" alt="Default rate by late_code_flag"></p>
-
 ---
 
 ## 4. Feature engineering
@@ -178,12 +176,13 @@ After this step the data has 14 feature columns.
 **Class imbalance.** 10,009 of 149,390 borrowers (6.7%) defaulted. This is why the split is
 stratified and why the models use class weights.
 
-<p align="center"><img src="images/target_distribution.png" width="420" alt="Target distribution"></p>
+| Class | Borrowers | Share |
+|---|---:|---:|
+| No default (0) | 139,381 | 93.3% |
+| Default (1) | 10,009 | 6.7% |
 
 **Past late payments are the strongest signal.** The default rate rises from 2.8% for borrowers who
-were never late to 57.2% for borrowers late 5 or more times (the last bar means 5 or more).
-
-<p align="center"><img src="images/default_rate_by_late_payments.png" width="520" alt="Default rate by total late payments"></p>
+were never late to 57.2% for borrowers late 5 or more times.
 
 | Total late payments | 0 | 1 | 2 | 3 | 4 | 5 or more |
 |---|---:|---:|---:|---:|---:|---:|
@@ -192,21 +191,29 @@ were never late to 57.2% for borrowers late 5 or more times (the last bar means 
 **Younger borrowers are riskier.** The default rate falls steadily with age, from 11.7% for ages 18-30
 to 2.3% for borrowers over 70.
 
-<p align="center"><img src="images/default_rate_by_age.png" width="520" alt="Default rate by age group"></p>
+| Age group | 18-30 | 30-40 | 40-50 | 50-60 | 60-70 | 70+ |
+|---|---:|---:|---:|---:|---:|---:|
+| Default rate | 11.7% | 9.8% | 8.3% | 6.2% | 3.5% | 2.3% |
 
 **Going over the credit limit is a strong warning sign.** The 3,321 borrowers (2.2%) who use more than
 their limit default at 37.2%, against 6.0% for everyone else.
 
-<p align="center"><img src="images/default_rate_by_over_limit.png" width="380" alt="Default rate by over_limit"></p>
-
 **Missing income is a weak signal.** Borrowers with missing income default at 5.7%, slightly less than
 the 7.0% of borrowers who gave their income.
+
+**The new flag columns.** Default rate of borrowers with the flag set to 0 and to 1:
+
+| Flag | Default rate when 0 | Default rate when 1 |
+|---|---:|---:|
+| `late_code_flag` | 6.6% | 60.4% |
+| `over_limit` | 6.0% | 37.2% |
+| `income_missing` | 7.0% | 5.7% |
 
 **Correlation with the target.** `total_late` has the highest correlation (0.39), higher than any of the
 three original late-payment columns (0.27 to 0.31), followed by `over_limit` (0.18). `age` is negative
 (−0.12). Credit utilization has almost no correlation (−0.00) because of extreme values up to 50,708,
-even though `over_limit`, built from the same column, is one of the clearest signals. The grouped graphs
-showed a pattern that the correlation number alone missed.
+even though `over_limit`, built from the same column, is one of the clearest signals. The grouped
+default rates showed a pattern that the correlation number alone missed.
 
 ---
 
@@ -262,7 +269,12 @@ Accuracy would have picked the Random Forest as the best model, yet it caught on
 
 ### 6.3 Tuned Random Forest on the test set
 
-<p align="center"><img src="images/confusion_matrix_tuned_rf.png" width="460" alt="Confusion matrix of the tuned Random Forest"></p>
+Confusion matrix (rows are the actual class, columns are the prediction):
+
+| | Predicted: no default | Predicted: default |
+|---|---:|---:|
+| **Actual: no default** | 22,525 | 5,351 |
+| **Actual: default** | 455 | 1,547 |
 
 Of 2,002 defaulters in the test set, the model catches **1,547** and misses **455**. It also flags
 5,351 good customers as risky. In a real bank these customers would go to a manual check, not be
@@ -286,10 +298,13 @@ right depends on what a missed defaulter costs compared with checking a flagged 
 
 ## 7. Feature importance
 
-<p align="center"><img src="images/feature_importance.png" width="640" alt="Random Forest feature importance"></p>
+Importance from the tuned Random Forest, in the order of the notebook's feature importance chart:
 
 - **Credit utilization** (about 0.31) and **`total_late`** (about 0.29) together make up about 60% of
   the importance. This matches the exploratory analysis.
+- They are followed by `NumberOfTimes90DaysLate`, `NumberOfTime30-59DaysPastDueNotWorse`, `age` and
+  `NumberOfTime60-89DaysPastDueNotWorse`. The least important are `NumberOfDependents` and
+  `income_missing`.
 - Utilization had almost no correlation with default yet is the most important feature, because the
   relationship is not a straight line and a Random Forest can capture it.
 - `total_late` is more important than any of the three original late-payment columns alone (each
@@ -339,8 +354,7 @@ but exact numbers can differ slightly on another machine or library version.
 
 ```text
 ├── data/
-│   └── cs-training.csv
-├── images/                       Graphs used in this README
+│   └── README.md                 How to download cs-training.csv
 ├── notebooks/
 │   └── credit_scoring.ipynb      Full analysis, run top to bottom
 ├── requirements.txt
