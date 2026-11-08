@@ -9,6 +9,7 @@
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
 [![pandas](https://img.shields.io/badge/pandas-data-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org/)
 [![Jupyter](https://img.shields.io/badge/Jupyter-Notebook-F37626?logo=jupyter&logoColor=white)](https://jupyter.org/)
+[![Flask](https://img.shields.io/badge/Flask-demo%20app-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Kaggle](https://img.shields.io/badge/Kaggle-Dataset-20BEFF?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/brycecf/give-me-some-credit-dataset?select=cs-training.csv)
 
 </div>
@@ -36,6 +37,7 @@ flowchart LR
     E --> F[3 models<br/>class weights]
     F --> G[GridSearchCV<br/>ROC-AUC]
     G --> H[Threshold analysis<br/>and feature importance]
+    H --> I[Saved model<br/>and Flask demo app]
 ```
 
 ### Key results
@@ -49,6 +51,7 @@ flowchart LR
 | Hidden signal | Placeholder values (96/98) in the late-payment columns mark a group with **60.4%** default rate vs 6.6% for everyone else |
 | Strongest predictors | Credit utilization and `total_late` (about 60% of the Random Forest's importance together) |
 | Test set outcome | 1,547 of 2,002 defaulters caught, 455 missed, 5,351 good customers flagged as risky |
+| Demo app | Flask app (`app.py`) that shows the model's risk score for one borrower's details |
 
 ---
 
@@ -62,9 +65,10 @@ flowchart LR
 6. [Models and results](#6-models-and-results)
 7. [Feature importance](#7-feature-importance)
 8. [Reproducing the results](#8-reproducing-the-results)
-9. [Limitations](#9-limitations)
-10. [Repository structure](#10-repository-structure)
-11. [References](#11-references)
+9. [Demo app](#9-demo-app)
+10. [Limitations](#10-limitations)
+11. [Repository structure](#11-repository-structure)
+12. [References](#12-references)
 
 ---
 
@@ -122,6 +126,7 @@ written and run locally with Python 3.11.9.
 | Grid Part | `GridSearchCV` for each model, results before and after tuning |
 | Changing the Threshold | Precision and recall at thresholds 0.3, 0.5 and 0.7 |
 | Feature Importance | What the tuned Random Forest relies on |
+| Saving the model | Saves the tuned Random Forest and the values the demo app needs |
 | Conclusion | What was learned, limitations |
 
 ---
@@ -145,7 +150,7 @@ Every cleaning step is based on something found in `describe()` or in a follow-u
 | Age = 0 | 1 row, impossible for a borrower | Removed |
 | Late counts of 96 and 98 | Counts run 0, 1, 2 ... 13 (up to 17 in one column), then jump straight to 96 and 98. Being late 98 times in 2 years is impossible | Saved as a flag, then replaced with 0 |
 | Missing `MonthlyIncome` | 19.8% of rows, too many to delete | Flag column, then filled with the median |
-| Missing `NumberOfDependents` | 2.6% of rows, all of them also missing income | Filled with the median |
+| Missing `NumberOfDependents` | 2.6% of rows | Filled with the median |
 | Very large `DebtRatio` | Median is 0.30 when income is present but 1,159 when income is missing, so the raw debt amount was stored instead of a ratio | `income_missing` flag lets the model tell these rows apart |
 
 ### The 96/98 values are not noise
@@ -154,7 +159,7 @@ In the raw data, the 269 borrowers with a 96/98 value default at **54.6%**, agai
 else. After the duplicates are removed, 225 such borrowers remain, and they default at **60.4%**.
 Replacing the values with 0 straight away would have labelled these people as "never late" and thrown
 away a strong risk signal, so the `late_code_flag` column is created first. The exact meaning of
-96 and 98 is not documented; the evidence shows they are not real counts.
+96 and 98 is not explained in the dataset file; the evidence shows they are not real counts.
 
 ---
 
@@ -211,8 +216,8 @@ the 7.0% of borrowers who gave their income.
 
 **Correlation with the target.** `total_late` has the highest correlation (0.39), higher than any of the
 three original late-payment columns (0.27 to 0.31), followed by `over_limit` (0.18). `age` is negative
-(−0.12). Credit utilization has almost no correlation (−0.00) because of extreme values up to 50,708,
-even though `over_limit`, built from the same column, is one of the clearest signals. The grouped
+(−0.12). Credit utilization has almost no correlation (−0.00), probably because of extreme values up to
+50,708, even though `over_limit`, built from the same column, is one of the clearest signals. The grouped
 default rates showed a pattern that the correlation number alone missed.
 
 ---
@@ -305,13 +310,14 @@ Importance from the tuned Random Forest, in the order of the notebook's feature 
 - They are followed by `NumberOfTimes90DaysLate`, `NumberOfTime30-59DaysPastDueNotWorse`, `age` and
   `NumberOfTime60-89DaysPastDueNotWorse`. The least important are `NumberOfDependents` and
   `income_missing`.
-- Utilization had almost no correlation with default yet is the most important feature, because the
-  relationship is not a straight line and a Random Forest can capture it.
+- Utilization had almost no correlation with default yet is the most important feature. A likely reason
+  is that the relationship is not a straight line, which a Random Forest can capture and a correlation
+  number cannot.
 - `total_late` is more important than any of the three original late-payment columns alone (each
   below 0.10).
 - `over_limit` and `late_code_flag` rank low even though both separate risky borrowers clearly in the
-  analysis. `over_limit` is built from utilization, so the model already has that information, and
-  `late_code_flag` applies to only 225 borrowers (0.15% of the data).
+  analysis. A probable reason is that `over_limit` is built from utilization, so the model already has
+  that information, and `late_code_flag` applies to only 225 borrowers (0.15% of the data).
 
 ---
 
@@ -321,13 +327,14 @@ Importance from the tuned Random Forest, in the order of the notebook's feature 
 
 ```bash
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
 2. Download `cs-training.csv` from the [Kaggle dataset](https://www.kaggle.com/datasets/brycecf/give-me-some-credit-dataset?select=cs-training.csv)
    and place it in the `data/` folder (see [`data/README.md`](data/README.md)).
 3. Open `notebooks/credit_scoring.ipynb` in Jupyter or VS Code and select **Run All**.
+4. Optional: start the demo app, see [Demo app](#9-demo-app).
 
 The notebook reads the file from `../data/cs-training.csv`, so keep the folder layout and run it from
 the `notebooks/` folder. The grid search is the slowest step. All random steps use `random_state=42`,
@@ -335,7 +342,36 @@ but exact numbers can differ slightly on another machine or library version.
 
 ---
 
-## 9. Limitations
+## 9. Demo app
+
+`app.py` is a small Flask app for trying the model on one borrower at a time.
+
+```bash
+python app.py
+```
+
+Then open http://127.0.0.1:5000 in a browser. The app loads `models/credit_model.pkl`, which the
+"Saving the model" section of the notebook creates and which is included in the repository. If
+scikit-learn warns about a version mismatch, run the notebook again to create the file on your machine.
+
+How it works:
+
+1. The page asks for the ten original columns. Monthly income and number of dependents are optional.
+2. The app repeats the notebook's steps. If income is left blank, `income_missing` is set to 1 and the
+   median income from the training data is used. `total_late` and `over_limit` are built from the
+   entered values, and `late_code_flag` is always 0 because the 96/98 values cannot be entered.
+3. The tuned Random Forest returns a score between 0 and 1. The page shows a band: **Low** below 0.3,
+   **Medium** from 0.3 to 0.7 and **High** at 0.7 or more, the thresholds compared in the
+   "Changing the Threshold" section of the notebook.
+4. Wrong input (for example an age outside 18-110, text instead of a number or a negative value) shows
+   an error message and no score.
+
+The score is not a real probability of default, because class weights push the scores up. This is a
+student demo and not meant for real lending decisions.
+
+---
+
+## 10. Limitations
 
 - Missing values were filled with the median of the whole dataset before the train-test split.
   Strictly, the median should come from the training data only. With 150,000 rows the effect is very
@@ -347,16 +383,24 @@ but exact numbers can differ slightly on another machine or library version.
 - The thresholds were compared on the test set to show the trade-off. In production they should be
   chosen on separate validation data using the bank's real costs.
 - Only class weights were used for the imbalance. Resampling methods such as SMOTE were not compared.
+- The demo app shows a model score, not a real probability of default, because class weights push the
+  scores up. It cannot take the 96/98 codes, so `late_code_flag` is always 0 there, and its risk bands
+  use the thresholds from the notebook, not the costs of a real bank.
 
 ---
 
-## 10. Repository structure
+## 11. Repository structure
 
 ```text
 ├── data/
-│   └── README.md                 How to download cs-training.csv
+│   └── cs-training.csv
+├── models/
+│   └── credit_model.pkl
 ├── notebooks/
-│   └── credit_scoring.ipynb      Full analysis, run top to bottom
+│   └── credit_scoring.ipynb
+├── templates/
+│   └── index.html
+├── app.py
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -366,7 +410,7 @@ The dataset itself is not stored in the repository.
 
 ---
 
-## 11. References
+## 12. References
 
 1. *Give Me Some Credit* dataset, Kaggle, [`cs-training.csv`](https://www.kaggle.com/datasets/brycecf/give-me-some-credit-dataset?select=cs-training.csv).
 2. F. Pedregosa et al. *Scikit-learn: Machine Learning in Python.* Journal of Machine Learning
