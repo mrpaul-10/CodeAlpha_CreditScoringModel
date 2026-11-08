@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credit Scoring Model</title>
+<style>
+  :root {
+    --bg: #f4f6fa; --card: #ffffff; --text: #1d2433; --muted: #5d6879; --line: #d9dee8;
+    --accent: #2b59c3; --low: #1f8a4c; --medium: #b7791f; --high: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11151c; --card: #1a2029; --text: #e8ecf3; --muted: #9aa5b6; --line: #2d3644; --accent: #6b93f0; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.5; }
+  .page { max-width: 860px; margin: 0 auto; padding: 32px 18px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.7rem; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-bottom: 20px; }
+  .card h2 { margin: 0 0 14px; font-size: 1.05rem; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 18px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  label { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; }
+  .hint { display: block; font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+  input { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 0.95rem; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  button { cursor: pointer; border-radius: 8px; padding: 10px 18px; font-size: 0.95rem; font-weight: 600; border: 1px solid var(--accent); }
+  button.main { background: var(--accent); color: #fff; }
+  #output { scroll-margin-top: 16px; }
+  .error { border-left: 4px solid var(--high); }
+  .result { border-left: 6px solid var(--line); }
+  .result.low { border-left-color: var(--low); }
+  .result.medium { border-left-color: var(--medium); }
+  .result.high { border-left-color: var(--high); }
+  .level { font-size: 1.5rem; font-weight: 700; margin: 0; }
+  .low .level { color: var(--low); } .medium .level { color: var(--medium); } .high .level { color: var(--high); }
+  .score { margin: 4px 0 12px; color: var(--muted); }
+  .note { color: var(--muted); font-size: 0.85rem; }
+  ul { margin: 8px 0 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Credit Scoring Model</h1>
+  <p class="sub">A small demo of my credit scoring project. Enter a borrower's details to see the model's risk score.</p>
+
+  <form method="post" action="#output" class="card" id="credit-form">
+    <h2>Borrower details</h2>
+    <div class="grid">
+      <div><label for="age">Age <span class="hint">18 to 110</span></label>
+        <input type="number" step="1" id="age" name="age" value="{{ form.get('age', '') }}"></div>
+      <div><label for="utilization">Credit utilization <span class="hint">card balance ÷ credit limit; above 1 means over the limit</span></label>
+        <input type="number" step="any" id="utilization" name="utilization" value="{{ form.get('utilization', '') }}"></div>
+      <div><label for="late_30_59">Times 30-59 days late <span class="hint">whole number</span></label>
+        <input type="number" step="1" id="late_30_59" name="late_30_59" value="{{ form.get('late_30_59', '') }}"></div>
+      <div><label for="late_60_89">Times 60-89 days late <span class="hint">whole number</span></label>
+        <input type="number" step="1" id="late_60_89" name="late_60_89" value="{{ form.get('late_60_89', '') }}"></div>
+      <div><label for="late_90">Times 90+ days late <span class="hint">whole number</span></label>
+        <input type="number" step="1" id="late_90" name="late_90" value="{{ form.get('late_90', '') }}"></div>
+      <div><label for="debt_ratio">Debt ratio <span class="hint">monthly debt payments ÷ monthly income</span></label>
+        <input type="number" step="any" id="debt_ratio" name="debt_ratio" value="{{ form.get('debt_ratio', '') }}"></div>
+      <div><label for="income">Monthly income <span class="hint">optional, leave blank if unknown</span></label>
+        <input type="number" step="any" id="income" name="income" value="{{ form.get('income', '') }}"></div>
+      <div><label for="open_lines">Open credit lines and loans <span class="hint">whole number</span></label>
+        <input type="number" step="1" id="open_lines" name="open_lines" value="{{ form.get('open_lines', '') }}"></div>
+      <div><label for="real_estate">Real estate loans <span class="hint">mortgages and property loans</span></label>
+        <input type="number" step="1" id="real_estate" name="real_estate" value="{{ form.get('real_estate', '') }}"></div>
+      <div><label for="dependents">Number of dependents <span class="hint">optional, leave blank if unknown</span></label>
+        <input type="number" step="1" id="dependents" name="dependents" value="{{ form.get('dependents', '') }}"></div>
+    </div>
+    <div class="buttons">
+      <button type="submit" class="main">Get risk score</button>
+    </div>
+  </form>
+
+  {% if error or result %}
+  <div id="output">
+  {% if error %}
+  <div class="card error"><strong>Please check the form:</strong> {{ error }}</div>
+  {% endif %}
+
+  {% if result %}
+  <div class="card result {{ result.style }}">
+    <p class="level">{{ result.level }}</p>
+    <p class="score">Model risk score: <strong>{{ '%.2f'|format(result.score) }}</strong> (out of 1.00)</p>
+    <ul>
+      <li>Total late payments entered: {{ result.total_late }}</li>
+      <li>Over the credit limit: {{ "yes" if result.over_limit else "no" }}</li>
+      {% if result.income_missing %}<li>Income left blank, so the median income from the training data was used.</li>{% endif %}
+    </ul>
+    <p class="note">Bands: below {{ low }} is low risk, {{ low }} to {{ high }} is medium, {{ high }} or above is high. These are the thresholds compared in the notebook.
+    The score is not a real probability of default, because class weights push the scores up.</p>
+  </div>
+  {% endif %}
+  </div>
+  {% endif %}
+
+  <p class="note">This is a student demo built on the Give Me Some Credit dataset.</p>
+</div>
+</body>
+</html>
